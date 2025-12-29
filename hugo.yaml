@@ -1,5 +1,6 @@
 # Hugo configuration file
-title: 何夕2077的AI资讯日报 | 精选AI新闻与工具 | 洞悉AI前沿动态
+title: Chark的AI资讯日报 | 精选AI新闻与工具 | 洞悉AI前沿动态
+baseURL: https://rebornbugkiller.github.io/Hextra-AI-Insight-Daily/
 
 timezone: Asia/Shanghai
 enableRobotsTXT: true
@@ -49,12 +50,12 @@ menu:
       weight: 2
     - identifier: about      
       name: 关于我 ↗
-      url: "https://github.com/justlovemaki"
+      url: "https://github.com/Rebornbugkiller"
       weight: 3
     - identifier: github   
       name: 同性交友
       weight: 4
-      url: "https://github.com/justlovemaki/CloudFlare-AI-Insight-Daily"
+      url: "https://github.com/Rebornbugkiller/Hextra-AI-Insight-Daily"
       params:
         icon: github
 
@@ -67,20 +68,20 @@ params:
   logo: "images/logo-dark.png"
   
   author:
-    name: "何夕2077的AI资讯日报 | 精选AI新闻与工具 | 洞悉AI前沿动态"
-    bio: "去海边整点薯条"
-    email: "justlikemaki@qq.com"
-    website: "https://ai.hubtoday.app/about/"
+    name: "Chark的AI资讯日报"
+    bio: "每日精选AI资讯"
+    email: "your-email@example.com"
+    website: "https://rebornbugkiller.github.io/Hextra-AI-Insight-Daily/about/"
     social:
       - name: "GitHub"
-        url: "https://github.com/justlovemaki"
+        url: "https://github.com/Rebornbugkiller"
         
   publisher:
     type: "Person" 
-    name: "何夕2077的AI资讯日报 | 精选AI新闻与工具 | 洞悉AI前沿动态"
-    url: "https://ai.hubtoday.app/about/"
+    name: "Chark的AI资讯日报"
+    url: "https://rebornbugkiller.github.io/Hextra-AI-Insight-Daily/about/"
     sameAs:
-      - "https://github.com/justlovemaki"
+      - "https://github.com/Rebornbugkiller"
       
   displayUpdatedDate: true
   dateFormat: "2006/01/02 15:04:05"
@@ -131,7 +132,7 @@ params:
     type: giscus
 
     giscus:
-      repo: justlovemaki/Hextra-AI-Insight-Daily
+      repo: Rebornbugkiller/Hextra-AI-Insight-Daily
       repoId: R_kgDOO_2Owg
       category: Announcements
       categoryId: DIC_kwDOO_2Ows4Cr2Q0
@@ -147,5 +148,5 @@ languages:
   en:
     contentDir: content/en
     languageName: English
-    title: Hex2077's AI Daily | AI News | AI Tools | AI Insights
+    title: Chark's AI Daily | AI News | AI Tools | AI Insights
     weight: 2
