@@ -1,6 +1,5 @@
 name: Update Content from Daily Notes
 on:
-  # 允许在 GitHub Actions 页面手动触发此工作流
   workflow_dispatch:
     inputs:
       source_repo:
@@ -12,9 +11,8 @@ on:
         required: true
         default: 'main'
 
-  # 也可以设置定时触发，例如每天凌晨1点 (UTC时间)
   schedule:
-    - cron: '0 22 * * *' # 每天 UTC 时间 0 点运行 (北京时间早上6点)
+    - cron: '0 22 * * *'
 
 jobs:
   build-and-commit:
@@ -23,11 +21,9 @@ jobs:
       contents: write
 
     steps:
-      # 第0步：检出当前仓库代码
       - name: Checkout current repository
         uses: actions/checkout@v4
 
-      # 第1步：拉取源仓库代码
       - name: Clone source repository
         uses: actions/checkout@v4
         with:
@@ -35,7 +31,6 @@ jobs:
           ref: ${{ github.event.inputs.source_branch || 'main' }}
           path: 'clone'
 
-      # 第2步：替换图片 URL (如果需要)
       - name: Replace image URLs in daily notes
         run: |
           echo "开始替换 clone/daily/ 目录下的 Markdown 文件内容..."
@@ -50,27 +45,55 @@ jobs:
             echo "警告: 仓库变量 IMAGE_PROXY_URL 未设置，跳过 URL 替换。"
           fi
 
-      # 第2.5步：删除广告内容
-      - name: Remove advertisement sections
+      - name: Remove advertisement sections (强力版)
         run: |
-          echo "开始删除广告内容..."
-          if [ -d "clone/daily" ]; then
-            # 删除小宇宙和抖音广告部分
-            find clone/daily -type f -name "*.md" -exec sed -i \
-              -e '/##[[:space:]]*📻[[:space:]]*小宇宙/,/来生小酒馆/d' \
-              -e '/##[[:space:]]*📱[[:space:]]*抖音/,/自媒体账号/d' \
-              -e '/##[[:space:]]*小宇宙/,/来生小酒馆/d' \
-              -e '/##[[:space:]]*抖音/,/自媒体账号/d' \
-              -e '/!\[.*来生小酒馆.*\]/d' \
-              -e '/!\[.*何夕2077.*\]/d' \
-              -e '/来生小酒馆/d' \
-              -e '/自媒体账号/d' {} +
-            echo "广告内容删除完成。"
-          else
-            echo "clone/daily 目录不存在，跳过广告删除。"
+          echo "=========================================="
+          echo "开始删除广告内容（强力模式）..."
+          echo "=========================================="
+          
+          if [ ! -d "clone/daily" ]; then
+            echo "错误: clone/daily 目录不存在"
+            exit 0
           fi
+          
+          file_count=0
+          processed_count=0
+          
+          # 遍历所有 markdown 文件
+          for file in clone/daily/*.md; do
+            if [ -f "$file" ]; then
+              file_count=$((file_count + 1))
+              filename=$(basename "$file")
+              echo "正在处理: $filename"
+              
+              # 创建临时文件
+              temp_file="${file}.tmp"
+              
+              # 使用 awk 删除从广告标题到文件末尾的所有内容
+              awk '
+                /^##[[:space:]]*(📻[[:space:]]*)?小宇宙/ { exit }
+                /^##[[:space:]]*(📱[[:space:]]*)?抖音/ { exit }
+                /来生小酒馆/ { exit }
+                /自媒体账号/ { exit }
+                { print }
+              ' "$file" > "$temp_file"
+              
+              # 检查是否有实际修改
+              if ! cmp -s "$file" "$temp_file"; then
+                mv "$temp_file" "$file"
+                processed_count=$((processed_count + 1))
+                echo "  ✓ 已删除广告内容"
+              else
+                rm "$temp_file"
+                echo "  - 未发现广告内容"
+              fi
+            fi
+          done
+          
+          echo "=========================================="
+          echo "删除完成！共处理 $file_count 个文件，其中 $processed_count 个包含广告"
+          echo "=========================================="
 
-      # 第3步：核心处理逻辑 (归档、更新主页和侧边栏)
       - name: Process, Archive, and Update Content
         run: |
           #!/bin/bash
@@ -80,7 +103,6 @@ jobs:
           SOURCE_DIR="clone/daily"
           TARGET_CONTENT_DIR="content/cn"
 
-          # --- 新增: 读取默认 description ---
           echo "--- 步骤 0.1: 读取默认描述信息 ---"
           DEFAULT_DESCRIPTION=""
           if [ -f "hugo.yaml" ]; then
@@ -102,14 +124,9 @@ jobs:
             DEFAULT_SUBTITLE=$(yq e '.params.subTitle' -N hugo.yaml || true)
             if [ -n "$DEFAULT_SUBTITLE" ]; then
               echo "从 hugo.yaml 中读取到默认 subTitle: $DEFAULT_SUBTITLE"
-            else
-              echo "警告: 在 hugo.yaml 中未找到 .params.subTitle 或其值为空。"
             fi
-          else
-            echo "警告: hugo.yaml 文件未找到，无法读取默认 subTitle。"
           fi
 
-          # --- 1. 识别文件角色并立即提取所需信息 ---
           echo "--- 步骤 1: 识别文件并提取关键信息 ---"
           if [ ! -d "$SOURCE_DIR" ] || [ -z "$(ls -A $SOURCE_DIR)" ]; then
             echo "源目录 $SOURCE_DIR 不存在或为空，退出。"
@@ -132,7 +149,6 @@ jobs:
           LATEST_DESCRIPTION=$(echo "$DEFAULT_DESCRIPTION" | sed 's/"/\\"/g')
           echo "已提取并保存 description: $LATEST_DESCRIPTION"
 
-          # --- 2. 归档除最新文件外的所有文件 ---
           echo "--- 步骤 2: 归档文件到年月目录 ---"
           if [ -z "$ARCHIVE_NOTES" ]; then
             echo "没有需要归档的文件，跳过。"
@@ -187,7 +203,6 @@ jobs:
             done
           fi
 
-          # --- 3. 折叠上个月的侧边栏 ---
           echo "--- 步骤 3: 更新上个月侧边栏状态 ---"
           LATEST_NOTE_MONTH=$(basename "$LATEST_NOTE" .md | cut -c 1-7)
 
@@ -221,7 +236,6 @@ jobs:
             echo "无法从 $LATEST_NOTE 解析月份，跳过侧边栏折叠逻辑。"
           fi
 
-          # --- 4. 更新主索引页面 ---
           echo "--- 步骤 4: 更新主索引页面 (content/cn/_index.md) ---"
           TARGET_INDEX="$TARGET_CONTENT_DIR/_index.md"
           
@@ -240,11 +254,10 @@ jobs:
           cat "$LATEST_NOTE" >> "$TARGET_INDEX"
           echo "$TARGET_INDEX 更新完成。"
 
-      # 第4步：提交 content 目录下的所有修改
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(content): 自动同步每日文章及更新主页"
+          commit_message: "chore(content): 自动同步每日文章及更新主页（已删除广告）"
           file_pattern: 'content/*'
           commit_user_name: "GitHub Actions Bot"
           commit_user_email: "actions@github.com"
