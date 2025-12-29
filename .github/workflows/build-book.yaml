@@ -10,7 +10,7 @@ on:
       source_branch:
         description: '要拉取的源分支'
         required: true
-        default: 'book' # <<< 请修改为你的源分支
+        default: 'main' # <<< 请修改为你的源分支
 
   # 也可以设置定时触发，例如每天凌晨1点 (UTC时间)
   schedule:
@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.event.inputs.source_repo || 'justlovemaki/CloudFlare-AI-Insight-Daily' }} # Fallback to default if not provided by manual trigger
-          ref: ${{ github.event.inputs.source_branch || 'book' }} # Fallback to default
+          ref: ${{ github.event.inputs.source_branch || 'main' }} # Fallback to default
           path: 'clone'
 
       # 第2步：替换图片 URL (如果需要)
