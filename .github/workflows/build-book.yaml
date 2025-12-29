@@ -6,11 +6,11 @@ on:
       source_repo:
         description: '要拉取代码的源仓库 (格式: owner/repo)'
         required: true
-        default: 'justlovemaki/CloudFlare-AI-Insight-Daily' # <<< 请修改为你的源仓库
+        default: 'Rebornbugkiller/Hextra-AI-Insight-Daily'
       source_branch:
         description: '要拉取的源分支'
         required: true
-        default: 'main' # <<< 请修改为你的源分支
+        default: 'main'
 
   # 也可以设置定时触发，例如每天凌晨1点 (UTC时间)
   schedule:
@@ -31,8 +31,8 @@ jobs:
       - name: Clone source repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.event.inputs.source_repo || 'justlovemaki/CloudFlare-AI-Insight-Daily' }} # Fallback to default if not provided by manual trigger
-          ref: ${{ github.event.inputs.source_branch || 'main' }} # Fallback to default
+          repository: ${{ github.event.inputs.source_repo || 'Rebornbugkiller/Hextra-AI-Insight-Daily' }}
+          ref: ${{ github.event.inputs.source_branch || 'main' }}
           path: 'clone'
 
       # 第2步：替换图片 URL (如果需要)
@@ -50,6 +50,26 @@ jobs:
             echo "警告: 仓库变量 IMAGE_PROXY_URL 未设置，跳过 URL 替换。"
           fi
 
+      # 第2.5步：删除广告内容
+      - name: Remove advertisement sections
+        run: |
+          echo "开始删除广告内容..."
+          if [ -d "clone/daily" ]; then
+            # 删除小宇宙和抖音广告部分
+            find clone/daily -type f -name "*.md" -exec sed -i \
+              -e '/##[[:space:]]*📻[[:space:]]*小宇宙/,/来生小酒馆/d' \
+              -e '/##[[:space:]]*📱[[:space:]]*抖音/,/自媒体账号/d' \
+              -e '/##[[:space:]]*小宇宙/,/来生小酒馆/d' \
+              -e '/##[[:space:]]*抖音/,/自媒体账号/d' \
+              -e '/!\[.*来生小酒馆.*\]/d' \
+              -e '/!\[.*何夕2077.*\]/d' \
+              -e '/来生小酒馆/d' \
+              -e '/自媒体账号/d' {} +
+            echo "广告内容删除完成。"
+          else
+            echo "clone/daily 目录不存在，跳过广告删除。"
+          fi
+
       # 第3步：核心处理逻辑 (归档、更新主页和侧边栏)
       - name: Process, Archive, and Update Content
         run: |
@@ -64,35 +84,29 @@ jobs:
           echo "--- 步骤 0.1: 读取默认描述信息 ---"
           DEFAULT_DESCRIPTION=""
           if [ -f "hugo.yaml" ]; then
-            # 使用 yq (预装在 runner 上) 安全地解析 YAML 文件
-            # 'yq e' 是 evaluate 的意思, '.params.description' 是路径, '-N' 移除 '---' 分隔符
-            # '|| true' 确保即使 yq 找不到键也不会让脚本失败
             DEFAULT_DESCRIPTION=$(yq e '.params.description' -N hugo.yaml || true)
             if [ -n "$DEFAULT_DESCRIPTION" ]; then
               echo "从 hugo.yaml 中读取到默认 description: $DEFAULT_DESCRIPTION"
             else
               echo "警告: 在 hugo.yaml 中未找到 .params.description 或其值为空。"
-              DEFAULT_DESCRIPTION="查看详情" # 提供一个最终的备用值
+              DEFAULT_DESCRIPTION="查看详情"
             fi
           else
             echo "警告: hugo.yaml 文件未找到，无法读取默认 description。"
-            DEFAULT_DESCRIPTION="查看详情" # 提供一个最终的备用值
+            DEFAULT_DESCRIPTION="查看详情"
           fi
 
           echo "--- 步骤 0.2: 读取默认子标题 ---"
           DEFAULT_SUBTITLE=""
           if [ -f "hugo.yaml" ]; then
-            # 使用 yq 安全地解析 YAML 文件
             DEFAULT_SUBTITLE=$(yq e '.params.subTitle' -N hugo.yaml || true)
             if [ -n "$DEFAULT_SUBTITLE" ]; then
               echo "从 hugo.yaml 中读取到默认 subTitle: $DEFAULT_SUBTITLE"
             else
               echo "警告: 在 hugo.yaml 中未找到 .params.subTitle 或其值为空。"
-              # 注意: 这里我们不设置备用值，如果未找到，DEFAULT_SUBTITLE 将保持为空字符串
             fi
           else
             echo "警告: hugo.yaml 文件未找到，无法读取默认 subTitle。"
-            # 文件未找到时，DEFAULT_SUBTITLE 同样保持为空字符串
           fi
 
           # --- 1. 识别文件角色并立即提取所需信息 ---
@@ -111,28 +125,14 @@ jobs:
 
           LATEST_NOTE=$(echo "$ALL_NOTES" | head -n 1)
           SECOND_LATEST_NOTE=$(echo "$ALL_NOTES" | head -n 2 | tail -n 1)
-          ARCHIVE_NOTES=$(echo "$ALL_NOTES" | tail -n +1) # All notes are potentially archive notes initially
+          ARCHIVE_NOTES=$(echo "$ALL_NOTES" | tail -n +1)
 
           echo "最新文件 (用于主页): $(basename $LATEST_NOTE)"
           
-          # echo "正在为最新笔记提取 description..."
-          # if grep -q "AI内容摘要" "$LATEST_NOTE"; then
-          #     LATEST_DESCRIPTION=$(grep -A 5 "AI内容摘要" "$LATEST_NOTE" | sed -n '/AI内容摘要/!p' | sed 's/^[#* >]*//g' | python3 -c 'import sys; print(sys.stdin.read().replace("\n", " ").replace("```", "").strip()[:80])')
-          #     LATEST_DESCRIPTION="$DEFAULT_DESCRIPTION 。$LATEST_DESCRIPTION"
-          # elif grep -q "AI产品与功能更新" "$LATEST_NOTE"; then
-          #     LATEST_DESCRIPTION=$(grep -A 5 "AI产品与功能更新" "$LATEST_NOTE" | sed -n '/AI产品与功能更新/!p' | sed 's/^[#* >]*//g' | python3 -c 'import sys; print(sys.stdin.read().replace("\n", " ").replace("```", "").strip()[:80])')
-          #     LATEST_DESCRIPTION="$DEFAULT_DESCRIPTION 。$LATEST_DESCRIPTION"
-          # else
-          #     echo "警告: 最新笔记 '$LATEST_NOTE' 中未找到摘要。将使用 hugo.yaml 中的默认 description。"
-          #     LATEST_DESCRIPTION="$DEFAULT_DESCRIPTION"
-          # fi
-          # 转义描述中的双引号以确保 YAML 格式正确
           LATEST_DESCRIPTION=$(echo "$DEFAULT_DESCRIPTION" | sed 's/"/\\"/g')
           echo "已提取并保存 description: $LATEST_DESCRIPTION"
 
-          # --- 2. 归档除最新文件外的所有文件 (实际上是归档所有文件到其年月目录) ---
-          # The logic for `content/cn/_index.md` will use the LATEST_NOTE content directly.
-          # So all notes in ALL_NOTES can be processed for archiving into year-month folders.
+          # --- 2. 归档除最新文件外的所有文件 ---
           echo "--- 步骤 2: 归档文件到年月目录 ---"
           if [ -z "$ARCHIVE_NOTES" ]; then
             echo "没有需要归档的文件，跳过。"
@@ -144,19 +144,8 @@ jobs:
               YEAR_MONTH=$(echo "$filename" | cut -c 1-7)
               TARGET_FILE="$TARGET_CONTENT_DIR/$YEAR_MONTH/$filename"
 
-              # Check if the target file already exists and is identical to avoid unnecessary writes/commits
-              # This simple check might not be perfect for "identical" but good enough to prevent re-processing
               if [ -f "$TARGET_FILE" ]; then
-                 # A more robust check would involve comparing content, but for now, existence is a good proxy
-                 # To force update, one would need to delete the target file first or enhance this check
                  echo "文件 $TARGET_FILE 已存在，假设内容未变，跳过归档处理。"
-                 # If you always want to overwrite or update based on new description logic, remove this 'continue'
-                 # and let the file be overwritten below.
-                 # For this request, we assume we might re-generate description if source file changed.
-                 # So, we will proceed to re-generate the file.
-                 # To prevent re-processing *unchanged* files, you'd need a more complex diff or hash check.
-                 # For now, let's allow re-processing to ensure descriptions are updated if logic changes.
-                 # echo "文件 $TARGET_FILE 已存在，将重新生成以确保描述最新。" # uncomment if you want this message
               fi
 
               echo "正在处理归档: $filename"
@@ -169,7 +158,6 @@ jobs:
               if [ ! -d "$TARGET_MONTH_DIR" ]; then
                 mkdir -p "$TARGET_MONTH_DIR"
                 year_month_num_str="${YEAR}${MONTH}"
-                # Ensure year_month_num_str is treated as a number for arithmetic
                 year_month_num=$(printf "%d" "$year_month_num_str")
                 index_weight=$((300000 - year_month_num))
                 printf -- "---\ntitle: %s-%s\nweight: %d\nbreadcrumbs: false\nsidebar:\n  open: true\n---\n" \
@@ -182,17 +170,13 @@ jobs:
               local_description=""
               if grep -q "AI内容摘要" "$source_file"; then
                 local_description=$(grep -A 5 "AI内容摘要" "$source_file" | sed -n '/AI内容摘要/!p' | sed 's/^[#* >]*//g' | python3 -c 'import sys; print(sys.stdin.read().replace("\n", " ").replace("```", "").strip()[:150])')
-                # local_description="$DEFAULT_SUBTITLE 。$local_description"
               elif grep -q "AI产品与功能更新" "$source_file"; then
                 local_description=$(grep -A 5 "AI产品与功能更新" "$source_file" | sed -n '/AI产品与功能更新/!p' | sed 's/^[#* >]*//g' | python3 -c 'import sys; print(sys.stdin.read().replace("\n", " ").replace("```", "").strip()[:150])')
-                # local_description="$DEFAULT_SUBTITLE 。$local_description"
               else
                 echo "警告: 文件 '$source_file' 中未找到摘要。将使用 hugo.yaml 中的默认 description。"
                 local_description="$DEFAULT_DESCRIPTION"
               fi
-              # Escape quotes for YAML frontmatter
               local_description=$(echo "$local_description" | python3 -c 'import sys; text = sys.stdin.read(); print(text.replace("\"", "\\\""))')
-
 
               (
                 printf -- "---\nlinkTitle: %s-%s-日报\ntitle: %s-%s-日报-AI资讯日报\nweight: %d\nbreadcrumbs: false\ncomments: true\ndescription: \"%s\"\n---\n\n" \
@@ -205,15 +189,8 @@ jobs:
 
           # --- 3. 折叠上个月的侧边栏 ---
           echo "--- 步骤 3: 更新上个月侧边栏状态 ---"
-          # This logic relies on LATEST_NOTE representing the current month's latest.
-          # The month of LATEST_NOTE should be open. The month *before that* should be closed.
-          
-          # Determine the month of the LATEST_NOTE
           LATEST_NOTE_MONTH=$(basename "$LATEST_NOTE" .md | cut -c 1-7)
 
-          # Calculate the month *before* LATEST_NOTE_MONTH
-          # Use date command for robust month calculation
-          # Ensure LATEST_NOTE_MONTH-01 is a valid date for date command
           if [[ "$LATEST_NOTE_MONTH" =~ ^[0-9]{4}-[0-9]{2}$ ]]; then
             PREVIOUS_TO_LATEST_MONTH=$(date -d "$LATEST_NOTE_MONTH-01 -1 month" +"%Y-%m")
             PREVIOUS_INDEX_FILE="$TARGET_CONTENT_DIR/$PREVIOUS_TO_LATEST_MONTH/_index.md"
@@ -227,45 +204,36 @@ jobs:
               echo "上上个月的索引文件 $PREVIOUS_INDEX_FILE 未找到，跳过侧边栏折叠。"
             fi
 
-            # Ensure current latest month's sidebar is open
             LATEST_MONTH_INDEX_FILE="$TARGET_CONTENT_DIR/$LATEST_NOTE_MONTH/_index.md"
             if [ -f "$LATEST_MONTH_INDEX_FILE" ] && grep -q "open: false" "$LATEST_MONTH_INDEX_FILE"; then
                 sed -i 's/open: false/open: true/g' "$LATEST_MONTH_INDEX_FILE"
                 echo "已确保 $LATEST_MONTH_INDEX_FILE 的侧边栏为 open: true。"
             elif [ -f "$LATEST_MONTH_INDEX_FILE" ] && ! grep -q "open: true" "$LATEST_MONTH_INDEX_FILE"; then
-                 # If 'open:' key exists but not true, or if 'sidebar:' exists but no 'open:'
-                 # This part is a bit tricky, might need more robust sed/awk if format varies
                  if grep -q "sidebar:" "$LATEST_MONTH_INDEX_FILE"; then
-                    # Assuming sidebar structure is simple, append/replace open: true
-                    # This is a simplification; a proper YAML parser would be better for complex cases
-                    sed -i '/sidebar:/a\ \ open: true' "$LATEST_MONTH_INDEX_FILE" # Attempt to add if not present
-                    sed -i 's/open: .*/open: true/' "$LATEST_MONTH_INDEX_FILE" # Ensure it is true
+                    sed -i '/sidebar:/a\ \ open: true' "$LATEST_MONTH_INDEX_FILE"
+                    sed -i 's/open: .*/open: true/' "$LATEST_MONTH_INDEX_FILE"
                     echo "已尝试更新/添加 $LATEST_MONTH_INDEX_FILE 的侧边栏为 open: true。"
                  fi
             elif [ -f "$LATEST_MONTH_INDEX_FILE" ]; then
                 echo "$LATEST_MONTH_INDEX_FILE 侧边栏已为 open: true，无需操作。"
             fi
-
-
           else
             echo "无法从 $LATEST_NOTE 解析月份，跳过侧边栏折叠逻辑。"
           fi
-
 
           # --- 4. 更新主索引页面 ---
           echo "--- 步骤 4: 更新主索引页面 (content/cn/_index.md) ---"
           TARGET_INDEX="$TARGET_CONTENT_DIR/_index.md"
           
           FRONTMATTER="---\nlinkTitle: AI Daily\ntitle: AI Daily-AI资讯日报\nbreadcrumbs: false\n"
-          # The 'next' link should point to the second latest note, which is now an archived page.
-          if [ -n "$SECOND_LATEST_NOTE" ] && [ "$LATEST_NOTE" != "$SECOND_LATEST_NOTE" ]; then # Ensure there IS a second latest note
+          if [ -n "$SECOND_LATEST_NOTE" ] && [ "$LATEST_NOTE" != "$SECOND_LATEST_NOTE" ]; then
             FILENAME_SECOND_LATEST=$(basename "$SECOND_LATEST_NOTE" .md)
             YEAR_MONTH_SECOND_LATEST=$(echo "$FILENAME_SECOND_LATEST" | cut -c 1-7)
             NEXT_LINK="${YEAR_MONTH_SECOND_LATEST}/${FILENAME_SECOND_LATEST}"
-            FRONTMATTER+="next: /${NEXT_LINK}\n" # Assuming absolute path from site root
+            FRONTMATTER+="next: /${NEXT_LINK}\n"
           fi
           
-          FRONTMATTER+="description: \"${LATEST_DESCRIPTION}\"\n" # LATEST_DESCRIPTION is already escaped
+          FRONTMATTER+="description: \"${LATEST_DESCRIPTION}\"\n"
           FRONTMATTER+="cascade:\n  type: docs\n---\n\n"
 
           printf "%b" "$FRONTMATTER" > "$TARGET_INDEX"
@@ -277,6 +245,6 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(content): 自动同步每日文章及更新主页"
-          file_pattern: 'content/*' # Only commit changes in content directory
+          file_pattern: 'content/*'
           commit_user_name: "GitHub Actions Bot"
           commit_user_email: "actions@github.com"
