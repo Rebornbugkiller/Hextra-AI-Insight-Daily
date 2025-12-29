@@ -67,7 +67,7 @@ jobs:
         run: |
           hugo \
             --gc --minify \
-            --baseURL "${{ vars.APP_BASE_URL }}/"
+            --baseURL "https://rebornbugkiller.github.io/Hextra-AI-Insight-Daily/"
           echo "url1: ${{ vars.APP_BASE_URL }}"
           echo "url2: ${{ env.APP_BASE_URL }}"
           echo "url3: ${{ steps.pages.outputs.base_url }}"
