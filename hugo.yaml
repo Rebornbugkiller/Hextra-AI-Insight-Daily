@@ -87,8 +87,8 @@ params:
   dateFormat: "2006/01/02 15:04:05"
 
   navbar:
-    displayTitle: false
-    displayLogo: true
+    displayTitle: true   # 显示文字标题
+    displayLogo: false   # 不显示图片 logo
     logo:
       path: images/logo.png
       dark: images/logo-dark.png
