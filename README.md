@@ -5,6 +5,9 @@
 ## 项目概述
 
 本项目是一个 Serverless 架构的 AI 应用后端系统，主要解决信息过载问题。系统自动从多个数据源（Folo、GitHub Trending、HuggingFace Papers、Reddit、Twitter 等）抓取 AI 相关资讯，利用大语言模型进行智能摘要和深度分析，最终生成结构化的日报内容。
+<img width="1709" height="810" alt="image" src="https://github.com/user-attachments/assets/945f9263-15b3-42ec-a1ff-eba63b50f485" />
+<img width="1190" height="809" alt="image" src="https://github.com/user-attachments/assets/dd8f15d1-d739-4177-8f5f-cd4538d80955" />
+
 
 ## 技术架构
 
